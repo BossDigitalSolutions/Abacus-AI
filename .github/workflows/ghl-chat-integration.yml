@@ -1,0 +1,46 @@
+name: GHL to Abacus AI Chat Integration
+
+on:
+  repository_dispatch:
+    types: [ghl-chat-message]
+  workflow_dispatch:
+
+jobs:
+  process-chat:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Process GHL Chat Message
+      run: |
+        echo "Processing chat message from GHL"
+        echo "Message: ${{ github.event.client_payload.message }}"
+        echo "Contact ID: ${{ github.event.client_payload.contact_id }}"
+        echo "Conversation ID: ${{ github.event.client_payload.conversation_id }}"
+    
+    - name: Send to Abacus AI
+      id: abacus
+      run: |
+        response=$(curl -s -X POST "https://api.abacus.ai/api/v0/chatLLM" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${{ secrets.ABACUS_API_KEY }}" \
+          -d '{
+            "deploymentToken": "your_deployment_token_here",
+            "messages": [{"role": "user", "content": "${{ github.event.client_payload.message }}"}]
+          }')
+        
+        echo "abacus_response=$response" >> $GITHUB_OUTPUT
+        echo "Abacus AI Response: $response"
+    
+    - name: Send Response Back to GHL
+      run: |
+        # Extract the response content (you may need to adjust this based on Abacus AI response format)
+        message_content=$(echo '${{ steps.abacus.outputs.abacus_response }}' | jq -r '.response // .content // .message')
+        
+        curl -X POST "https://services.leadconnectorhq.com/conversations/${{ github.event.client_payload.conversation_id }}/messages" \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer ${{ secrets.GHL_API_KEY }}" \
+          -d '{
+            "type": "SMS",
+            "message": "'$message_content'",
+            "contactId": "${{ github.event.client_payload.contact_id }}"
+          }'
