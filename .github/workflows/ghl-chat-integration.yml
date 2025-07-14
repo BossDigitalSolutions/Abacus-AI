@@ -1,4 +1,4 @@
-name: GHL to Abacus AI Chat Integration
+name: GHL Demo to Abacus AI Chat Integration
 
 on:
   repository_dispatch:
@@ -12,7 +12,7 @@ jobs:
     steps:
     - name: Process GHL Chat Message
       run: |
-        echo "Processing chat message from GHL"
+        echo "Processing chat message from GHL Demo"
         echo "Message: ${{ github.event.client_payload.message }}"
         echo "Contact ID: ${{ github.event.client_payload.contact_id }}"
         echo "Conversation ID: ${{ github.event.client_payload.conversation_id }}"
@@ -29,9 +29,13 @@ jobs:
         
         echo "Raw Abacus Response: $response"
         
-        # Extract the response content (try multiple possible fields)
+        # Extract the response content
         message_content=$(echo "$response" | jq -r '.response // .content // .message // .text // .choices[0].message.content // "Error: No response found"')
         echo "abacus_response=$message_content" >> $GITHUB_OUTPUT
         echo "Extracted Response: $message_content"
     
-    - name: Send Respon
+    - name: Send Response Back to GHL Demo
+      run: |
+        curl -X POST "https://services.leadconnectorhq.com/conversations/${{ github.event.client_payload.conversation_id }}/messages" \
+          -H "Content-Type: application/json" \
+          -H "Authorization:
