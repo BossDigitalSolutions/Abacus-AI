@@ -1,21 +1,18 @@
-name: GHL Demo to Abacus AI Chat Integration
+name: GHL to Abacus Integration
 
 on:
   repository_dispatch:
-    types: [ghl-chat-message]
-  workflow_dispatch:
+    types: [ghl_message]
 
 jobs:
-  process-chat:
+  process-message:
     runs-on: ubuntu-latest
     
     steps:
     - name: Process GHL Chat Message
       run: |
-        echo "Processing chat message from GHL Demo"
-        echo "Message: ${{ github.event.client_payload.message }}"
-        echo "Contact ID: ${{ github.event.client_payload.contact_id }}"
-        echo "Conversation ID: ${{ github.event.client_payload.conversation_id }}"
+        echo "Received message: ${{ github.event.client_payload.message }}"
+        echo "From contact: ${{ github.event.client_payload.contact_id }}"
     
     - name: Send to Abacus ChatLLM
       id: abacus
@@ -23,13 +20,13 @@ jobs:
         response=$(curl -s -X POST "https://api.abacus.ai/api/v0/chatLLM" \
           -H "Content-Type: application/json" \
           -H "Authorization: Bearer ${{ secrets.ABACUS_API_KEY }}" \
-          -d "{\"messages\": [{\"role\": \"user\", \"content\": \"${{ github.event.client_payload.message }}\"}]}")
+          -d '{"message": "${{ github.event.client_payload.message }}"}')
         
         echo "Raw Abacus Response: $response"
-        
-        message_content=$(echo "$response" | jq -r '.response // .content // .message // .text // .choices[0].message.content // "Error: No response found"')
-        echo "abacus_response=$message_content" >> $GITHUB_OUTPUT
-        echo "Extracted Response: $message_content"
+        abacus_response=$(echo "$response" | jq -r '.response // .message // "Error: No response found"')
+        echo "Extracted Response: $abacus_response"
+        echo "abacus_response=$abacus_response" >> $GITHUB_OUTPUT
+    
     - name: Send Response Back to GHL Demo
       run: |
         curl -X POST "https://services.leadconnectorhq.com/conversations/messages" \
@@ -38,9 +35,8 @@ jobs:
           -H "Version: 2021-07-28" \
           -d '{
             "type": "Live_Chat",
-            "locationId": "nOQwv0ggtRI3u930FNat",
+            "locationId": "noDvw0ggtRl3u030FNat",
             "message": "${{ steps.abacus.outputs.abacus_response }}"
           }'
         
         echo "Response sent back to GHL Demo"
-    
