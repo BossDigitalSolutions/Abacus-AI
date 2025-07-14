@@ -27,18 +27,11 @@ jobs:
             "messages": [{"role": "user", "content": "${{ github.event.client_payload.message }}"}]
           }')
         
-        # Extract the response content
-        message_content=$(echo "$response" | jq -r '.response // .content // .message // .text')
+        echo "Raw Abacus Response: $response"
+        
+        # Extract the response content (try multiple possible fields)
+        message_content=$(echo "$response" | jq -r '.response // .content // .message // .text // .choices[0].message.content // "Error: No response found"')
         echo "abacus_response=$message_content" >> $GITHUB_OUTPUT
-        echo "Abacus AI Response: $message_content"
+        echo "Extracted Response: $message_content"
     
-    - name: Send Response Back to GHL
-      run: |
-        curl -X POST "https://services.leadconnectorhq.com/conversations/${{ github.event.client_payload.conversation_id }}/messages" \
-          -H "Content-Type: application/json" \
-          -H "Authorization: Bearer ${{ secrets.GHL_API_KEY }}" \
-          -d '{
-            "type": "SMS",
-            "message": "${{ steps.abacus.outputs.abacus_response }}",
-            "contactId": "${{ github.event.client_payload.contact_id }}"
-          }'
+    - name: Send Respon
